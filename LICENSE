@@ -1,0 +1,34 @@
+MIT License
+
+Copyright (c) 2026 CleanTool (Free) contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---------------------------------------------------------------------------
+NOTE / 附加说明
+
+This software PERMANENTLY DELETES FILES. Cleanup targets are limited to
+temporary files and caches, and risky items (Recycle Bin, Windows.old, WinSxS
+component cleanup) are disabled by default and require explicit confirmation,
+but the authors accept no liability for data loss. Back up important data
+before use.
+
+本软件会永久删除文件。清理范围仅限临时文件与缓存，风险项（回收站、
+Windows.old、WinSxS 组件清理）默认不勾选且需二次确认，但作者仍不对任何
+数据丢失承担责任。使用前请备份重要数据。

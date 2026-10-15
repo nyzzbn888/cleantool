@@ -1,0 +1,27 @@
+# 运行时产物（每台机器各自生成，不入库）
+logs/
+cleanstats.json
+
+# 编译 / 备份中间产物
+*.bak
+*.bak-*
+*.bak-orig
+*.pdb
+*.win32manifest
+*.exe.config
+
+# 临时 / 测试脚本
+_*.ps1
+_*.exe
+*.tmp
+~$*
+
+# 大体积素材（不属于程序）
+*.wav
+*.mp4
+*.psd
+
+# 系统
+Thumbs.db
+desktop.ini
+.DS_Store
