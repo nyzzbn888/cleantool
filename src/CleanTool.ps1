@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 <#
 .SYNOPSIS
   CleanTool v3.2 - 玻璃拟态风格 · 中英双语
