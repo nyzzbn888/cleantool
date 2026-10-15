@@ -65,10 +65,20 @@
 
 ---
 
+## ⬇️ 下载 · Download
+
+| 方式 | 文件 | 说明 |
+|---|---|---|
+| 📦 **单文件**（推荐） | [`CleanTool.exe`](https://github.com/nyzzbn888/cleantool/releases/download/v3.2.1/CleanTool.exe) | 免安装，**右键 → 以管理员身份运行**（约 255 KB，自带全部功能） |
+
+> 也可以直接下载仓库里的 [`dist/CleanTool.exe`](dist/CleanTool.exe)。
+
+---
+
 ## 🚀 使用方法 · Getting Started
 
 ### 方式一：直接用（推荐）
-1. 下载 `dist/CleanTool.exe`
+1. 下载 `dist/CleanTool.exe`（或上面的 Release 附件）
 2. **右键 → 以管理员身份运行**（清理系统缓存和 DISM 必须提权）
    - 程序也会自动请求提权，弹 UAC 点是即可
 3. 点「重新扫描」→ 勾选项目 → 点「一键清理」
@@ -76,6 +86,9 @@
 > **首次运行可能出现 Windows SmartScreen 提示**（"Windows 已保护你的电脑"）：
 > 点「更多信息」→「仍要运行」。这是因为 exe 没有代码签名证书，不是病毒。
 > 杀毒软件偶尔也会误报（清理类工具调用 `takeown`/`icacls`/`dism`/`wevtutil` 属正常行为）。
+
+> **打不开怎么办？** 程序会在自己所在目录写入 `logs\startup.log`，记录启动每一步（程序路径、工作目录、管理员权限、界面构建、扫描起止）。如果双击没反应，先看这个日志；提权失败时程序也会弹窗提示改用「以管理员身份运行」。
+
 
 ### 方式二：从源码运行
 ```powershell

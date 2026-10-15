@@ -1,7 +1,7 @@
 ﻿#requires -Version 5.1
 <#
 .SYNOPSIS
-  CleanTool v3.2 - 玻璃拟态风格 · 中英双语
+  CleanTool v3.2.1 - 玻璃拟态风格 · 中英双语
   安全承诺：只删除临时文件和缓存，绝不碰任何软件注册表、绝不删除驱动或系统文件
 
   v3.2 改进:
@@ -20,17 +20,84 @@
 # 全局错误抑制，避免弹窗
 $ErrorActionPreference = "SilentlyContinue"
 
+# ===== 启动日志 (启动失败时唯一能留下的证据) =====
+$script:selfPath = ""
+try { $script:selfPath = [System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName } catch { }
+if (-not $script:selfPath) { $script:selfPath = [Environment]::GetCommandLineArgs()[0] }
+$script:appRoot = ""
+try { $script:appRoot = Split-Path -Parent $script:selfPath } catch { }
+if (-not $script:appRoot -or $script:appRoot -eq "") { $script:appRoot = (Get-Location).Path }
+$script:startLog = ""
+try {
+    $lg = Join-Path $script:appRoot "logs"
+    if (-not (Test-Path -LiteralPath $lg)) { New-Item -ItemType Directory -Path $lg -Force | Out-Null }
+    $script:startLog = Join-Path $lg "startup.log"
+} catch { }
+$script:uiReady = $false
+function Log-Start($msg) {
+    if (-not $script:startLog) { return }
+    try { Add-Content -LiteralPath $script:startLog -Value ("[{0}] {1}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $msg) -Encoding UTF8 } catch { }
+}
+Log-Start ("==== 启动 ==== 程序=" + $script:selfPath + " PID=" + $PID + " 工作目录=" + (Get-Location).Path)
+
+# 致命错误兜底: 记日志; 若界面还没起来, 再弹一个能看懂的提示
+# (避免"双击后什么都没发生"这种完全无从排查的情况)
+trap {
+    $m = $_.Exception.Message
+    Log-Start ("致命错误: " + $m + " | 行 " + $_.InvocationInfo.ScriptLineNumber + " | " + $_.InvocationInfo.PositionMessage)
+    if (-not $script:uiReady) {
+        try {
+            Add-Type -AssemblyName System.Windows.Forms -ErrorAction SilentlyContinue
+            [System.Windows.Forms.MessageBox]::Show(
+                "CleanTool 启动失败：`n`n$m`n`n详细信息已写入：`n$script:startLog",
+                "CleanTool", "OK", "Error") | Out-Null
+        } catch { }
+    }
+    exit 1
+}
+
 # ===== 自动请求管理员权限 =====
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+Log-Start ("管理员权限=" + $isAdmin)
 if (-not $isAdmin) {
-    $self = [Environment]::GetCommandLineArgs()[0]
-    Start-Process $self -Verb RunAs
+    # 决定"提权重启的目标":
+    #  · 编译成 exe  -> 重启自己这个 exe
+    #  · 直接跑 .ps1 -> 必须用 powershell.exe 并带上脚本路径,
+    #                   否则提权后只会打开一个空的 PowerShell 窗口 (表现为"打不开")
+    $target = $script:selfPath
+    $argList = @()
+    if ($target -eq "" -or $target -match "(?i)powershell(_ise)?\.exe$") {
+        $target = "powershell.exe"
+        $sp = $PSCommandPath
+        if (-not $sp) { $sp = $MyInvocation.MyCommand.Path }
+        if ($sp -and $sp -match "\.ps1$") {
+            $argList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-STA", "-File", "`"$sp`"")
+        }
+    }
+    Log-Start ("需要提权: 目标=" + $target + " 参数=" + ($argList -join " "))
+    $elevated = $false
+    try {
+        Start-Process -FilePath $target -ArgumentList $argList -Verb RunAs -ErrorAction Stop
+        $elevated = $true
+    } catch {
+        Log-Start ("提权失败: " + $_.Exception.Message)
+    }
+    if (-not $elevated) {
+        # 提权被取消或失败时给出明确提示, 不再静默退出
+        try {
+            Add-Type -AssemblyName System.Windows.Forms -ErrorAction SilentlyContinue
+            [System.Windows.Forms.MessageBox]::Show(
+                "CleanTool 需要管理员权限才能清理系统缓存。`n`n自动提权没有成功（可能是 UAC 被取消，或系统策略限制）。`n`n请右键 CleanTool.exe，选择「以管理员身份运行」。",
+                "CleanTool", "OK", "Warning") | Out-Null
+        } catch { }
+    }
     exit
 }
 
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
+Log-Start "程序集加载完成, 开始构建界面"
 
 # ===== 玻璃拟态颜色主题 =====
 # 背景：柔和浅灰蓝
@@ -59,7 +126,7 @@ $colorOrange = [System.Drawing.Color]::FromArgb(230, 170, 100)
 # ===== 语言系统 =====
 $script:lang = "zh"
 $script:translations = @{
-    "app_title" = @{ zh = "系统清理工具 v3.2"; en = "System Cleaner v3.2" }
+    "app_title" = @{ zh = "系统清理工具 v3.2.1"; en = "System Cleaner v3.2.1" }
     "main_title" = @{ zh = "系统清理工具"; en = "System Cleaner" }
     "main_subtitle" = @{ zh = "安全清理 · 驱动检测 · 只删缓存，绝不碰注册表和系统驱动"; en = "Safe Clean · Driver Check · Only cache, never touch registry or drivers" }
     "safety_promise" = @{ zh = "安全承诺：只删临时文件和缓存，绝不碰任何软件注册表、绝不删除驱动或系统文件"; en = "Safety Promise: Only temp files and cache, never touch software registry, never delete drivers or system files" }
@@ -1587,5 +1654,11 @@ $btnLang.Add_Click({ Toggle-Language })
 
 # ===== 启动 =====
 # 先把窗口显示出来, 再执行扫描; 否则用户点开程序要干等十几秒才有反应
-$form.Add_Shown({ Invoke-Scan })
+$form.Add_Shown({
+    # 界面真正显示出来之后, 再发生的错误就只记日志, 不再弹"启动失败"
+    $script:uiReady = $true
+    Log-Start "界面已显示, 开始扫描"
+    Invoke-Scan
+    Log-Start "首次扫描结束"
+})
 [void]$form.ShowDialog()
