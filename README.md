@@ -1,8 +1,8 @@
 # CleanTool（免费）· CleanTool (Free)
 
-一个**安全的** Windows 系统清理工具：玻璃拟态界面 · **中英双语** · 驱动检测 · 软件卸载。
+一个**安全的** Windows 10 / 11 系统清理工具（需管理员权限）：玻璃拟态界面 · **中英双语** · 驱动检测 · 软件卸载。
 
-> A **safe** Windows system cleaner with a glassmorphism UI, bilingual (中文 / English) interface, driver checker and software uninstaller.
+> A **safe** Windows 10 / 11 system cleaner with a glassmorphism UI, bilingual (中文 / English) interface, driver checker and software uninstaller.
 
 ![中文界面](docs/screenshot-cn.png)
 
