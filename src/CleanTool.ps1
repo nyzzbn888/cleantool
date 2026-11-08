@@ -1,7 +1,7 @@
 ﻿#requires -Version 5.1
 <#
 .SYNOPSIS
-  CleanTool v3.2.1 - 玻璃拟态风格 · 中英双语
+  CleanTool v3.2.3 - 玻璃拟态风格 · 中英双语
   安全承诺：只删除临时文件和缓存，绝不碰任何软件注册表、绝不删除驱动或系统文件
 
   v3.2 改进:
@@ -126,7 +126,7 @@ $colorOrange = [System.Drawing.Color]::FromArgb(230, 170, 100)
 # ===== 语言系统 =====
 $script:lang = "zh"
 $script:translations = @{
-    "app_title" = @{ zh = "系统清理工具 v3.2.1"; en = "System Cleaner v3.2.1" }
+    "app_title" = @{ zh = "系统清理工具 v3.2.3"; en = "System Cleaner v3.2.3" }
     "main_title" = @{ zh = "系统清理工具"; en = "System Cleaner" }
     "main_subtitle" = @{ zh = "安全清理 · 驱动检测 · 只删缓存，绝不碰注册表和系统驱动"; en = "Safe Clean · Driver Check · Only cache, never touch registry or drivers" }
     "safety_promise" = @{ zh = "安全承诺：只删临时文件和缓存，绝不碰任何软件注册表、绝不删除驱动或系统文件"; en = "Safety Promise: Only temp files and cache, never touch software registry, never delete drivers or system files" }
@@ -341,27 +341,37 @@ function Get-DirSize($path) {
     if (-not $path -or $path -eq "") { return [long]0 }
     if (-not (Test-Path -LiteralPath $path)) { return [long]0 }
     $sum = [long]0
-    try {
-        $stack = New-Object System.Collections.Stack
-        $stack.Push($path)
-        while ($stack.Count -gt 0) {
-            $dir = $stack.Pop()
-            try {
-                foreach ($f in [System.IO.Directory]::EnumerateFiles($dir)) {
-                    try { $sum += (New-Object System.IO.FileInfo($f)).Length } catch { }
-                }
-            } catch { }
-            try {
-                foreach ($d in [System.IO.Directory]::EnumerateDirectories($dir)) {
+    $reparse = [System.IO.FileAttributes]::ReparsePoint
+    $stack = New-Object System.Collections.Stack
+    $stack.Push($path)
+    $n = 0
+    while ($stack.Count -gt 0) {
+        $dir = $stack.Pop()
+        $di = $null
+        try { $di = New-Object System.IO.DirectoryInfo($dir) } catch { continue }
+        # 用 DirectoryInfo.EnumerateFiles 直接拿 Length, 比每个文件 new FileInfo 快 5-20 倍
+        try {
+            foreach ($f in $di.EnumerateFiles()) {
+                try { $sum += $f.Length } catch { }
+                $n++
+                # 每 2000 个文件让出一次 UI 线程: 否则扫大目录时窗口完全无响应, 看起来像死机
+                if (($n % 2000) -eq 0) {
                     try {
-                        $attr = [System.IO.File]::GetAttributes($d)
-                        if (($attr -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { continue }
-                        $stack.Push($d)
+                        if ($null -ne $form -and $form.IsDisposed) { return $sum }
+                        [System.Windows.Forms.Application]::DoEvents()
                     } catch { }
                 }
-            } catch { }
-        }
-    } catch { }
+            }
+        } catch { }
+        try {
+            foreach ($d in $di.EnumerateDirectories()) {
+                try {
+                    if (($d.Attributes -band $reparse) -ne 0) { continue }
+                    $stack.Push($d.FullName)
+                } catch { }
+            }
+        } catch { }
+    }
     return $sum
 }
 
@@ -508,7 +518,29 @@ $script:items = @(
     [pscustomobject]@{
         Name = "item_windows_update"; Desc = "item_windows_update_desc"; Default = $true
         Scan = { Get-DirSize "C:\Windows\SoftwareDistribution\Download" }
-        Clean = { $s = Get-DirSize "C:\Windows\SoftwareDistribution\Download"; $wuSvc = Get-Service wuauserv -ErrorAction SilentlyContinue; $wu = $false; if ($wuSvc) { $wu = ($wuSvc.Status -eq "Running") }; if ($wu) { Stop-Service wuauserv -Force -ErrorAction SilentlyContinue }; Get-ChildItem "C:\Windows\SoftwareDistribution\Download" -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue; if ($wu) { Start-Service wuauserv -ErrorAction SilentlyContinue }; $a = Get-DirSize "C:\Windows\SoftwareDistribution\Download"; return $s - $a }
+        # 注意: 这里绝对不能用 Stop-Service wuauserv -Force —— 当 usosvc(更新协调器) 正在跑时
+        # 它会无限期等待服务停止, 整个清理就卡死在这(实测卡住 150 秒以上, CPU 完全不动)。
+        # 改用 sc.exe(立即返回, 不阻塞) + 最多等 8 秒, 等不到就直接删能删的, 删不掉的跳过。
+        Clean = {
+            $dl = "C:\Windows\SoftwareDistribution\Download"
+            $s = Get-DirSize $dl
+            $wuSvc = Get-Service wuauserv -ErrorAction SilentlyContinue
+            $wu = $false
+            if ($wuSvc) { $wu = ($wuSvc.Status -eq "Running") }
+            if ($wu) {
+                try { $null = & sc.exe stop wuauserv 2>&1 } catch { }
+                for ($i = 0; $i -lt 16; $i++) {
+                    Start-Sleep -Milliseconds 500
+                    try { [System.Windows.Forms.Application]::DoEvents() } catch { }
+                    $st = (Get-Service wuauserv -ErrorAction SilentlyContinue).Status
+                    if ($st -ne "Running" -and $st -ne "StopPending") { break }
+                }
+            }
+            Get-ChildItem $dl -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+            if ($wu) { try { $null = & sc.exe start wuauserv 2>&1 } catch { } }
+            $a = Get-DirSize $dl
+            return $s - $a
+        }
     },
     [pscustomobject]@{
         Name = "item_thumb"; Desc = "item_thumb_desc"; Default = $true
@@ -892,9 +924,17 @@ function Invoke-Scan {
     foreach ($item in $script:items) {
         $lblStatus.Text = "$(T 'status_prefix_scan') $(T $item.Name)"
         $progressBar.Value++
+        # 先刷新一次, 让状态文字真的画出来 (原来只 DoEvents 不 Refresh, 慢项目期间画面是残影)
+        try { $form.Refresh() } catch { }
         [System.Windows.Forms.Application]::DoEvents()
         $size = [long]0
+        $sw = [System.Diagnostics.Stopwatch]::StartNew()
         try { $raw = & $item.Scan; if ($raw) { $size = [long]$raw } } catch { $size = [long]0 }
+        $sw.Stop()
+        # 记录单项耗时, 以后再卡就能直接看出是哪个项目
+        if ($sw.Elapsed.TotalSeconds -ge 1) {
+            try { Write-CleanLog ("扫描慢: {0} 用了 {1:N1} 秒" -f $item.Name, $sw.Elapsed.TotalSeconds) } catch { }
+        }
         $script:scanResults += [pscustomobject]@{ Item = $item; Size = $size }
         $lvi = New-Object System.Windows.Forms.ListViewItem((T $item.Name))
         $sizeText = $(if ($size -lt 0) { (T 'size_unknown') } else { Format-Size $size })
@@ -965,6 +1005,7 @@ function Invoke-Clean {
         $nameNow = (T $item.Name)
         $lblStatus.Text = "$(T 'status_prefix_clean') $nameNow"
         $progressBar.Value++
+        try { $form.Refresh() } catch { }
         [System.Windows.Forms.Application]::DoEvents()
 
         $freed = [long]0

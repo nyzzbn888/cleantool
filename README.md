@@ -69,7 +69,7 @@
 
 | 方式 | 文件 | 说明 |
 |---|---|---|
-| 📦 **单文件**（推荐） | [`CleanTool.exe`](https://github.com/nyzzbn888/cleantool/releases/download/v3.2.1/CleanTool.exe) | 免安装，**右键 → 以管理员身份运行**（约 255 KB，自带全部功能） |
+| 📦 **单文件**（推荐） | [`CleanTool.exe`](https://github.com/nyzzbn888/cleantool/releases/download/v3.2.3/CleanTool.exe) | 免安装，**右键 → 以管理员身份运行**（约 255 KB，自带全部功能） |
 
 > 也可以直接下载仓库里的 [`dist/CleanTool.exe`](dist/CleanTool.exe)。
 
